@@ -6,13 +6,13 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: url("Elf.magic.gif");
+      background: black;
       background-size: cover;
       color: white;
       margin: 0;
       padding: 0;
       display: flex;
-      flex-direction: column; /* ✅ fixed typo */
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100vh;
@@ -24,22 +24,19 @@
       margin: 20px 0;
     }
     .lock {
-    width: 100px;   /* wider */
-    height: 100px;  /* taller */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-
-    background: #1f2937;
-    border-radius: 14px;
-    box-shadow: 0 0 12px #38bdf8;
-    padding: 25px;
-
-  font-size: 1.3rem;
-  text-align: center;
-}
-
+      width: 100px;
+      height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: #1f2937;
+      border-radius: 14px;
+      box-shadow: 0 0 12px #38bdf8;
+      padding: 25px;
+      font-size: 1.3rem;
+      text-align: center;
+    }
     input {
       width: 80px;
       height: 80px;
@@ -131,8 +128,14 @@
       const binary = adminCodes[i]?.binary || binaries[i % binaries.length];
       const decimal = binToDec(binary);
       const letter = decToAlpha(decimal);
+      const type = adminCodes[i]?.type || "letter"; // ✅ load type correctly
 
-      lockData.push({ binary, decimal: decimal.toString(), letter });
+      lockData.push({ 
+        binary, 
+        decimal: decimal.toString(), 
+        letter, 
+        type 
+      });
 
       // Decide maxlength
       const maxLen = (decimal >= 10) ? 2 : 1;
@@ -144,8 +147,8 @@
         <input type="text" 
                data-index="${i}" 
                placeholder="Enter" 
-               maxlength="${maxLen}
-               autocomplete="off" ">
+               maxlength="${maxLen}"
+               autocomplete="off">
       `;
 
       container.appendChild(lockDiv);
@@ -154,57 +157,81 @@
     // Input behavior
     const inputs = container.querySelectorAll("input");
 
-      inputs.forEach((inp, idx) => {
-  inp.addEventListener("input", function () {
-    let val = this.value.toUpperCase();
+    inputs.forEach((inp, idx) => {
+      inp.addEventListener("input", function () {
+        let val = this.value.toUpperCase();
 
-    if (/^[A-Z]/.test(val[0])) {
-      // only allow 1 letter
-      this.value = val.replace(/[^A-Z]/g, "").slice(0, 1);
-      // jump immediately after typing a letter
-      if (idx < inputs.length - 1) {
-        inputs[idx + 1].focus();
-      }
-    } else if (/^[0-9]/.test(val[0])) {
-      // only allow digits
-      this.value = val.replace(/[^0-9]/g, "").slice(0, this.maxLength);
-      // jump only if number input is filled to maxlength
-      if (this.value.length >= parseInt(this.maxLength)) {
-        if (idx < inputs.length - 1) {
-          inputs[idx + 1].focus();
+        if (/^[A-Z]/.test(val[0])) {
+          // only allow 1 letter
+          this.value = val.replace(/[^A-Z]/g, "").slice(0, 1);
+          // jump immediately after typing a letter
+          if (idx < inputs.length - 1) {
+            inputs[idx + 1].focus();
+          }
+        } else if (/^[0-9]/.test(val[0])) {
+          // only allow digits
+          this.value = val.replace(/[^0-9]/g, "").slice(0, this.maxLength);
+          // jump only if number input is filled to maxlength
+          if (this.value.length >= parseInt(this.maxLength)) {
+            if (idx < inputs.length - 1) {
+              inputs[idx + 1].focus();
+            }
+          }
+        } else {
+          this.value = "";
         }
-      }
-    } else {
-      this.value = "";
-    }
 
-    // move back if cleared
-    if (this.value.length === 0 && idx > 0) {
-      inputs[idx - 1].focus();
-    }
-  });
-});
+        // move back if cleared
+        if (this.value.length === 0 && idx > 0) {
+          inputs[idx - 1].focus();
+        }
+      });
+    });
   }
 
   function checkLock() {
     const inputs = document.querySelectorAll(".lock input");
     let correct = true;
+    let feedback = "";
+
+    // Load final answer string from admin
+    const finalAnswer = localStorage.getItem("finalAnswer") || "";
+    let playerAnswer = "";
 
     inputs.forEach((inp, i) => {
       const val = inp.value.trim().toUpperCase();
-      if (val !== lockData[i].letter && val !== lockData[i].decimal) {
-        correct = false;
+      const expectedType = lockData[i].type;
+      const correctLetter = lockData[i].letter;
+      const correctNumber = lockData[i].decimal;
+
+      // build playerAnswer for strict matching
+      playerAnswer += val;
+
+      if (expectedType === "letter") {
+        if (val !== correctLetter && val !== correctNumber) {
+          correct = false;
+          feedback += `Position ${i + 1} should be a LETTER.<br>`;
+        }
+      } else {
+        if (val !== correctNumber && val !== correctLetter) {
+          correct = false;
+          feedback += `Position ${i + 1} should be a NUMBER.<br>`;
+        }
       }
     });
 
-    document.getElementById("result").innerHTML = correct
-    ? "Lock Unlocked!"
-    : "Wrong code. Try again!";
+    // Enforce exact match with saved finalAnswer
+    if (playerAnswer !== finalAnswer) {
+      correct = false;
+    }
 
     if (correct) {
+      document.getElementById("result").innerHTML = "Lock Unlocked!";
       setTimeout(() => {
         window.location.href = "acronym.html";
-      }, 1000); // wait 1 second before redirect
+      }, 1000);
+    } else {
+      document.getElementById("result").innerHTML = "❌ Wrong code.<br>" + feedback;
     }
   }
 
@@ -213,5 +240,3 @@
   </script>
 </body>
 </html>
-
-
